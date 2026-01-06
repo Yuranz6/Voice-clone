@@ -1,0 +1,73 @@
+name: Deploy EHR Agent to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create static HTML
+        run: |
+          mkdir -p ehr-agent-build
+          # Copy static files
+          cp -r static ehr-agent-build/
+          # Create static version of index.html using Python (more reliable than sed)
+          python3 << 'EOF'
+          import re
+          
+          # Read the template file
+          with open('templates/index.html', 'r', encoding='utf-8') as f:
+              content = f.read()
+          
+          # Replace Flask template syntax: {{ url_for('static', filename='path') }} with static/path
+          content = re.sub(
+              r"\{\{\s*url_for\('static',\s*filename='([^']+)'\s*\)\s*\}\}",
+              r'static/\1',
+              content
+          )
+          
+          # Update API base URL to point to Render backend (for GitHub Pages deployment)
+          content = re.sub(
+              r"window\.API_BASE_URL = window\.API_BASE_URL \|\| '';",
+              "window.API_BASE_URL = 'https://agent-rea2.onrender.com';",
+              content
+          )
+          
+          # Write the static HTML file
+          with open('ehr-agent-build/index.html', 'w', encoding='utf-8') as f:
+              f.write(content)
+          
+          print("✅ Static files prepared for deployment")
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './ehr-agent-build'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+

@@ -22,4 +22,3 @@ services:
       - key: ELEVENLABS_VOICE_ID
         sync: false
         optional: true
-
