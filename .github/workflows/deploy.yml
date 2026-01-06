@@ -43,7 +43,7 @@ jobs:
           cd client
           npm run build
         env:
-          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'https://voice-clone-9jbz.onrender.com/api' }}
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'https://agent-rea2.onrender.com/api' }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

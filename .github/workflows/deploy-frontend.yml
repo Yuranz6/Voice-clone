@@ -43,7 +43,7 @@ jobs:
       - name: Build React app
         working-directory: ./client
         env:
-          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'https://voice-clone-chat-backend.onrender.com/api' }}
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'https://agent-rea2.onrender.com/api' }}
         run: npm run build
 
       - name: Setup Pages
