@@ -48,7 +48,7 @@ jobs:
           # Update API base URL to point to Render backend (for GitHub Pages deployment)
           content = re.sub(
               r"window\.API_BASE_URL = window\.API_BASE_URL \|\| '';",
-              "window.API_BASE_URL = 'https://agent-rea2.onrender.com';",
+              "window.API_BASE_URL = 'https://voice-clone-9jbz.onrender.com';",
               content
           )
           
