@@ -11,6 +11,8 @@ let soapData = null;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化 i18n
+    i18n.updatePage();
     initializeSpeechRecognition();
     setupEventListeners();
     updateCharCount();
@@ -21,13 +23,13 @@ function initializeSpeechRecognition() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
-        recognition.lang = 'zh-CN';
+        recognition.lang = i18n.currentLang === 'zh' ? 'zh-CN' : 'en-US';
         recognition.continuous = true;
         recognition.interimResults = true;
         
         recognition.onstart = function() {
             isRecording = true;
-            updateRecordingStatus('正在录音...', true);
+            updateRecordingStatus(i18n.t('recordingStatus'), true);
             document.getElementById('start-recording').disabled = true;
             document.getElementById('stop-recording').disabled = false;
         };
@@ -52,8 +54,8 @@ function initializeSpeechRecognition() {
         };
         
         recognition.onerror = function(event) {
-            console.error('语音识别错误:', event.error);
-            updateRecordingStatus('语音识别错误: ' + event.error, false);
+            console.error('Speech recognition error:', event.error);
+            updateRecordingStatus(i18n.t('recordingError') + ': ' + event.error, false);
             stopRecording();
         };
         
@@ -69,7 +71,7 @@ function initializeSpeechRecognition() {
         };
     } else {
         document.getElementById('start-recording').disabled = true;
-        document.getElementById('start-recording').innerHTML = '<span class="icon">⚠️</span> 浏览器不支持语音识别';
+        document.getElementById('start-recording').innerHTML = '<span class="icon">⚠️</span> ' + i18n.t('speechNotSupported');
     }
 }
 
@@ -99,8 +101,8 @@ function startRecording() {
         try {
             recognition.start();
         } catch (e) {
-            console.error('启动录音失败:', e);
-            updateRecordingStatus('启动录音失败，请检查麦克风权限', false);
+            console.error('Failed to start recording:', e);
+            updateRecordingStatus(i18n.t('startRecordingFailed'), false);
         }
     }
 }
@@ -110,7 +112,7 @@ function stopRecording() {
     if (recognition && isRecording) {
         isRecording = false;
         recognition.stop();
-        updateRecordingStatus('录音已停止', false);
+        updateRecordingStatus(i18n.t('recordingStopped'), false);
         document.getElementById('start-recording').disabled = false;
         document.getElementById('stop-recording').disabled = true;
     }
@@ -125,7 +127,7 @@ function updateRecordingStatus(message, isRecording) {
 
 // 清空文本
 function clearText() {
-    if (confirm('确定要清空问诊记录吗？')) {
+    if (confirm(i18n.t('clearConfirm'))) {
         document.getElementById('consultation-text').value = '';
         updateCharCount();
         updateButtonStates();
@@ -156,13 +158,15 @@ function hideLoading() {
 
 // 获取患者信息
 function getPatientInfo() {
+    const notProvided = i18n.currentLang === 'zh' ? '未提供' : 'Not provided';
+    const none = i18n.currentLang === 'zh' ? '无' : 'None';
     return {
-        name: document.getElementById('patient-name').value || '未提供',
-        age: document.getElementById('patient-age').value || '未提供',
-        gender: document.getElementById('patient-gender').value || '未提供',
-        medical_history: document.getElementById('patient-history').value || '无',
-        allergies: document.getElementById('patient-allergies').value || '无',
-        current_medications: document.getElementById('patient-medications').value || '无'
+        name: document.getElementById('patient-name').value || notProvided,
+        age: document.getElementById('patient-age').value || notProvided,
+        gender: document.getElementById('patient-gender').value || notProvided,
+        medical_history: document.getElementById('patient-history').value || none,
+        allergies: document.getElementById('patient-allergies').value || none,
+        current_medications: document.getElementById('patient-medications').value || none
     };
 }
 
@@ -170,7 +174,7 @@ function getPatientInfo() {
 async function generateSOAP() {
     const transcript = document.getElementById('consultation-text').value.trim();
     if (!transcript) {
-        alert('请先输入问诊记录');
+        alert(i18n.t('pleaseEnterTranscript'));
         return;
     }
     
@@ -196,11 +200,11 @@ async function generateSOAP() {
             document.getElementById('recommend-exams').disabled = false;
             document.getElementById('check-drugs').disabled = false;
         } else {
-            alert('生成 SOAP 病历失败: ' + result.error);
+            alert(i18n.t('generateSOAPFailed') + ': ' + result.error);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('请求失败: ' + error.message);
+        alert(i18n.t('requestFailed') + ': ' + error.message);
     } finally {
         hideLoading();
     }
@@ -209,25 +213,34 @@ async function generateSOAP() {
 // 显示 SOAP 病历
 function displaySOAP(data) {
     if (data.error) {
-        document.getElementById('soap-content').textContent = '错误: ' + data.error;
+        const errorText = i18n.currentLang === 'zh' ? '错误' : 'Error';
+        document.getElementById('soap-content').textContent = errorText + ': ' + data.error;
     } else {
+        const notProvided = i18n.currentLang === 'zh' ? '未提供' : 'Not provided';
+        const chiefComplaint = i18n.currentLang === 'zh' ? '主诉' : 'Chief Complaint';
+        const subjective = i18n.currentLang === 'zh' ? '主观资料 (S - Subjective)' : 'Subjective (S)';
+        const objective = i18n.currentLang === 'zh' ? '客观资料 (O - Objective)' : 'Objective (O)';
+        const assessment = i18n.currentLang === 'zh' ? '评估 (A - Assessment)' : 'Assessment (A)';
+        const plan = i18n.currentLang === 'zh' ? '计划 (P - Plan)' : 'Plan (P)';
+        const diagnosis = i18n.currentLang === 'zh' ? '初步诊断' : 'Preliminary Diagnosis';
+        
         let html = `
-            <h3>主诉</h3>
-            <p>${data.chief_complaint || '未提供'}</p>
+            <h3>${chiefComplaint}</h3>
+            <p>${data.chief_complaint || notProvided}</p>
             
-            <h3>主观资料 (S - Subjective)</h3>
+            <h3>${subjective}</h3>
             <p>${data.subjective || ''}</p>
             
-            <h3>客观资料 (O - Objective)</h3>
+            <h3>${objective}</h3>
             <p>${data.objective || ''}</p>
             
-            <h3>评估 (A - Assessment)</h3>
+            <h3>${assessment}</h3>
             <p>${data.assessment || ''}</p>
             
-            <h3>计划 (P - Plan)</h3>
+            <h3>${plan}</h3>
             <p>${data.plan || ''}</p>
             
-            <h3>初步诊断</h3>
+            <h3>${diagnosis}</h3>
             <ul>
                 ${(data.preliminary_diagnosis || []).map(d => `<li>${d}</li>`).join('')}
             </ul>
@@ -240,7 +253,7 @@ function displaySOAP(data) {
 // 推荐检查项目
 async function recommendExaminations() {
     if (!soapData) {
-        alert('请先生成 SOAP 病历');
+        alert(i18n.t('pleaseGenerateSOAP'));
         return;
     }
     
@@ -264,11 +277,11 @@ async function recommendExaminations() {
         if (result.success) {
             displayExaminations(result.data);
         } else {
-            alert('推荐检查项目失败: ' + result.error);
+            alert(i18n.t('recommendExamsFailed') + ': ' + result.error);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('请求失败: ' + error.message);
+        alert(i18n.t('requestFailed') + ': ' + error.message);
     } finally {
         hideLoading();
     }
@@ -277,35 +290,36 @@ async function recommendExaminations() {
 // 显示检查项目推荐
 function displayExaminations(examinations) {
     if (!examinations || examinations.length === 0) {
-        document.getElementById('examinations-content').textContent = '未推荐检查项目';
+        document.getElementById('examinations-content').textContent = i18n.t('noExamsRecommended');
     } else {
-        // 按优先级分组
-        const high = examinations.filter(e => e.priority === '高');
-        const medium = examinations.filter(e => e.priority === '中');
-        const low = examinations.filter(e => e.priority === '低');
+        // 按优先级分组（支持中英文优先级）
+        const high = examinations.filter(e => e.priority === '高' || e.priority === 'High');
+        const medium = examinations.filter(e => e.priority === '中' || e.priority === 'Medium');
+        const low = examinations.filter(e => e.priority === '低' || e.priority === 'Low');
         
         let html = '';
+        const reasonText = i18n.t('reason');
         
         if (high.length > 0) {
-            html += '<h3>高优先级</h3><ul>';
+            html += `<h3>${i18n.t('highPriority')}</h3><ul>`;
             high.forEach(e => {
-                html += `<li><strong>${e.name}</strong> (${e.type})<br>理由: ${e.reason}</li>`;
+                html += `<li><strong>${e.name}</strong> (${e.type})<br>${reasonText}: ${e.reason}</li>`;
             });
             html += '</ul>';
         }
         
         if (medium.length > 0) {
-            html += '<h3>中优先级</h3><ul>';
+            html += `<h3>${i18n.t('mediumPriority')}</h3><ul>`;
             medium.forEach(e => {
-                html += `<li><strong>${e.name}</strong> (${e.type})<br>理由: ${e.reason}</li>`;
+                html += `<li><strong>${e.name}</strong> (${e.type})<br>${reasonText}: ${e.reason}</li>`;
             });
             html += '</ul>';
         }
         
         if (low.length > 0) {
-            html += '<h3>低优先级</h3><ul>';
+            html += `<h3>${i18n.t('lowPriority')}</h3><ul>`;
             low.forEach(e => {
-                html += `<li><strong>${e.name}</strong> (${e.type})<br>理由: ${e.reason}</li>`;
+                html += `<li><strong>${e.name}</strong> (${e.type})<br>${reasonText}: ${e.reason}</li>`;
             });
             html += '</ul>';
         }
@@ -318,7 +332,7 @@ function displayExaminations(examinations) {
 // 检查药物冲突
 async function checkDrugConflicts() {
     if (!soapData || !soapData.plan) {
-        alert('请先生成 SOAP 病历');
+        alert(i18n.t('pleaseGenerateSOAP'));
         return;
     }
     
@@ -342,11 +356,11 @@ async function checkDrugConflicts() {
             displayDrugCheck(result.data, result.prescribed_drugs);
             document.getElementById('save-report').disabled = false;
         } else {
-            alert('检查药物冲突失败: ' + result.error);
+            alert(i18n.t('checkDrugsFailed') + ': ' + result.error);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('请求失败: ' + error.message);
+        alert(i18n.t('requestFailed') + ': ' + error.message);
     } finally {
         hideLoading();
     }
@@ -357,30 +371,43 @@ function displayDrugCheck(data, prescribedDrugs) {
     let html = '';
     
     if (prescribedDrugs && prescribedDrugs.length > 0) {
-        html += `<h3>检测到的药物</h3><p>${prescribedDrugs.join(', ')}</p>`;
+        html += `<h3>${i18n.t('detectedDrugs')}</h3><p>${prescribedDrugs.join(', ')}</p>`;
     }
     
     if (data.message) {
         html += `<p>${data.message}</p>`;
     } else {
-        const severity = data.severity || '未知';
-        const severityText = {
+        const severity = data.severity || (i18n.currentLang === 'zh' ? '未知' : 'Unknown');
+        const severityText = i18n.currentLang === 'zh' ? {
             '高': '⚠️ 高风险',
             '中': '⚡ 中等风险',
             '低': 'ℹ️ 低风险',
-            '无': '✅ 无风险'
+            '无': '✅ 无风险',
+            'High': '⚠️ 高风险',
+            'Medium': '⚡ 中等风险',
+            'Low': 'ℹ️ 低风险',
+            'None': '✅ 无风险'
+        } : {
+            '高': '⚠️ High Risk',
+            '中': '⚡ Medium Risk',
+            '低': 'ℹ️ Low Risk',
+            '无': '✅ No Risk',
+            'High': '⚠️ High Risk',
+            'Medium': '⚡ Medium Risk',
+            'Low': 'ℹ️ Low Risk',
+            'None': '✅ No Risk'
         };
         
-        html += `<h3>总体评估</h3><p>${severityText[severity] || severity}</p>`;
+        html += `<h3>${i18n.t('overallAssessment')}</h3><p>${severityText[severity] || severity}</p>`;
         
         if (data.allergy_warnings && data.allergy_warnings.length > 0) {
-            html += '<h3>过敏警告</h3><ul>';
+            html += `<h3>${i18n.t('allergyWarnings')}</h3><ul>`;
             data.allergy_warnings.forEach(w => html += `<li>⚠️ ${w}</li>`);
             html += '</ul>';
         }
         
         if (data.drug_interactions && data.drug_interactions.length > 0) {
-            html += '<h3>药物相互作用</h3><ul>';
+            html += `<h3>${i18n.t('drugInteractions')}</h3><ul>`;
             data.drug_interactions.forEach(i => {
                 if (typeof i === 'object') {
                     html += `<li>⚠️ ${i.drugs}: ${i.description}</li>`;
@@ -392,26 +419,26 @@ function displayDrugCheck(data, prescribedDrugs) {
         }
         
         if (data.contraindications && data.contraindications.length > 0) {
-            html += '<h3>禁忌症</h3><ul>';
+            html += `<h3>${i18n.t('contraindications')}</h3><ul>`;
             data.contraindications.forEach(c => html += `<li>🚫 ${c}</li>`);
             html += '</ul>';
         }
         
         if (data.dosage_warnings && data.dosage_warnings.length > 0) {
-            html += '<h3>剂量警告</h3><ul>';
+            html += `<h3>${i18n.t('dosageWarnings')}</h3><ul>`;
             data.dosage_warnings.forEach(w => html += `<li>⚠️ ${w}</li>`);
             html += '</ul>';
         }
         
         if (data.recommendations && data.recommendations.length > 0) {
-            html += '<h3>建议</h3><ul>';
+            html += `<h3>${i18n.t('recommendations')}</h3><ul>`;
             data.recommendations.forEach(r => html += `<li>💡 ${r}</li>`);
             html += '</ul>';
         }
         
         if (!data.has_conflicts && (!data.allergy_warnings || data.allergy_warnings.length === 0) && 
             (!data.drug_interactions || data.drug_interactions.length === 0)) {
-            html += '<p>✅ 未发现明显的药物冲突或安全风险。</p>';
+            html += `<p>✅ ${i18n.t('noConflicts')}</p>`;
         }
     }
     
@@ -467,13 +494,13 @@ async function saveReport() {
         const result = await response.json();
         
         if (result.success) {
-            alert(`报告已保存: ${result.filename}`);
+            alert(i18n.t('saveReportSuccess') + ': ' + result.filename);
         } else {
-            alert('保存报告失败: ' + result.error);
+            alert(i18n.t('saveReportFailed') + ': ' + result.error);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('保存失败: ' + error.message);
+        alert(i18n.t('saveReportFailed') + ': ' + error.message);
     } finally {
         hideLoading();
     }
