@@ -32,11 +32,11 @@ jobs:
           cp -r static ehr-agent-build/
           # Create static version of index.html (replace Flask template syntax)
           # Replace {{ url_for('static', filename='css/style.css') }} with static/css/style.css
-          sed 's|{{ url_for('\''static'\'', filename='\''|static/|g' templates/index.html | \
-              sed 's|'\'') }}||g' > ehr-agent-build/index.html
+          sed "s|{{ url_for('static', filename='|static/|g" templates/index.html | \
+              sed "s|') }}||g" > ehr-agent-build/index.html
           # Update API base URL to point to Render backend (for GitHub Pages deployment)
-          sed -i.bak 's|window.API_BASE_URL = window.API_BASE_URL || '\'''\'';|window.API_BASE_URL = '\''https://agent-rea2.onrender.com'\'';|g' ehr-agent-build/index.html
-          rm ehr-agent-build/index.html.bak
+          sed -i.bak "s|window.API_BASE_URL = window.API_BASE_URL || '';|window.API_BASE_URL = 'https://agent-rea2.onrender.com';|g" ehr-agent-build/index.html
+          rm -f ehr-agent-build/index.html.bak
           echo "✅ Static files prepared for deployment"
 
       - name: Setup Pages
