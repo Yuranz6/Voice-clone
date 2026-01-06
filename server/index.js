@@ -44,6 +44,19 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Voice Clone API is running' });
 });
 
+// Root path - API info
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Voice Clone API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      voice: '/api/voice',
+      chat: '/api/chat'
+    }
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
