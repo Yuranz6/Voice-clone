@@ -30,14 +30,34 @@ jobs:
           mkdir -p ehr-agent-build
           # Copy static files
           cp -r static ehr-agent-build/
-          # Create static version of index.html (replace Flask template syntax)
-          # Replace {{ url_for('static', filename='css/style.css') }} with static/css/style.css
-          sed "s|{{ url_for('static', filename='|static/|g" templates/index.html | \
-              sed "s|') }}||g" > ehr-agent-build/index.html
+          # Create static version of index.html using Python (more reliable than sed)
+          python3 << 'EOF'
+          import re
+          
+          # Read the template file
+          with open('templates/index.html', 'r', encoding='utf-8') as f:
+              content = f.read()
+          
+          # Replace Flask template syntax: {{ url_for('static', filename='path') }} with static/path
+          content = re.sub(
+              r"\{\{\s*url_for\('static',\s*filename='([^']+)'\s*\)\s*\}\}",
+              r'static/\1',
+              content
+          )
+          
           # Update API base URL to point to Render backend (for GitHub Pages deployment)
-          sed -i.bak "s|window.API_BASE_URL = window.API_BASE_URL || '';|window.API_BASE_URL = 'https://agent-rea2.onrender.com';|g" ehr-agent-build/index.html
-          rm -f ehr-agent-build/index.html.bak
-          echo "✅ Static files prepared for deployment"
+          content = re.sub(
+              r"window\.API_BASE_URL = window\.API_BASE_URL \|\| '';",
+              "window.API_BASE_URL = 'https://agent-rea2.onrender.com';",
+              content
+          )
+          
+          # Write the static HTML file
+          with open('ehr-agent-build/index.html', 'w', encoding='utf-8') as f:
+              f.write(content)
+          
+          print("✅ Static files prepared for deployment")
+          EOF
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
